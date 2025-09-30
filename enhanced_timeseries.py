@@ -5,6 +5,7 @@
 # This file is part of the educational Data Analysis tasks.
 #
 # Copyright (C) 2025  ferrovovan
+# Modifications (C) 2025  Dvuhyarost
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,10 +20,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""
-DA-1-35 + DA-2-34: Работа с временными метками и создание бинарных признаков времени суток.
-"""
-
 import os
 import argparse
 import pandas as pd
@@ -31,8 +28,27 @@ from typing import Optional, List
 
 
 def load_dataframe_from_file(path: str, show_progress: bool = False) -> pd.DataFrame:
-    """
-    Загрузка таблицы из CSV файла.
+   """
+    Загружает таблицу из CSV файла, содержащего временные метки.
+
+    Параметры
+    ---------
+    path : str
+        Путь до CSV файла с временными метками
+    show_progress : bool, optional
+        Показывать ли прогресс загрузки, по умолчанию False
+
+    Возвращает
+    -------
+    pd.DataFrame
+        Таблица с одним столбцом "timestamp"
+
+    Исключения
+    ----------
+    FileNotFoundError
+        Если файл не существует
+    ValueError
+        Если в файле неверная структура или данные не читаются
     """
     if not os.path.exists(path):
         raise FileNotFoundError(f"Файл не найден: {path}")
@@ -41,7 +57,6 @@ def load_dataframe_from_file(path: str, show_progress: bool = False) -> pd.DataF
         if show_progress:
             print(f"Загрузка файла {path}...")
             
-        # Для больших файлов можно использовать chunksize, но для учебных данных это избыточно
         df = pd.read_csv(path)
         
         if show_progress:
@@ -63,13 +78,31 @@ def load_dataframe_from_file(path: str, show_progress: bool = False) -> pd.DataF
 def create_periodic_dataframe(
         start_timedate_point: str, periods: int, freq: str
     ) -> pd.DataFrame:
-    """
-    Создание таблицы с временными метками.
+     """
+    Создает таблицу с синтетическими временными метками.
+
+    Параметры
+    ---------
+    start_timedate_point : str
+        Начальная точка временного ряда в формате "YYYY-MM-DD HH:MM:SS"
+    periods : int
+        Количество создаваемых временных меток
+    freq : str
+        Частота генерации меток (например, '4h', '1D', '30min')
+
+    Возвращает
+    -------
+    pd.DataFrame
+        Таблица с синтетическими временными метками
+
+    Исключения
+    ----------
+    ValueError
+        Если количество периодов не положительное или не удалось создать метки
     """
     if periods <= 0:
         raise ValueError("Количество периодов должно быть положительным числом.")
 
-    # Валидация частоты
     valid_freqs = ['H', 'h', 'D', 'd', 'min', 'MIN', 'S', 's', 'M', 'Y', 'W']
     if not any(freq.endswith(f) for f in valid_freqs):
         print(f"Предупреждение: частота '{freq}' может быть невалидной. Допустимые: {', '.join(valid_freqs)}")
@@ -88,15 +121,33 @@ def create_periodic_dataframe(
 
 def convert_to_datetime(df: pd.DataFrame, handle_na: str = 'raise') -> pd.DataFrame:
     """
-    Преобразование строковых меток во временной формат datetime.
-    
-    Args:
-        handle_na: 'raise' - вызвать исключение, 'drop' - удалить строки, 'coerce' - преобразовать в NaT
+    Преобразует строковые метки во временной формат datetime.
+
+    Параметры
+    ---------
+    df : pd.DataFrame
+        Таблица с столбцом "timestamp" для преобразования
+    handle_na : str, optional
+        Стратегия обработки пустых значений:
+        - 'raise': вызвать исключение
+        - 'drop': удалить строки с пустыми значениями  
+        - 'coerce': преобразовать в NaT, по умолчанию 'raise'
+
+    Возвращает
+    -------
+    pd.DataFrame
+        Таблица с преобразованными временными метками
+
+    Исключения
+    ----------
+    KeyError
+        Если отсутствует столбец "timestamp"
+    ValueError
+        Если значения нельзя преобразовать в datetime или неверная стратегия handle_na
     """
     if "timestamp" not in df.columns:
         raise KeyError("Отсутствует обязательный столбец 'timestamp'.")
 
-    # Обработка пропущенных значений
     na_count = df["timestamp"].isna().sum()
     if na_count > 0:
         if handle_na == 'raise':
@@ -116,7 +167,6 @@ def convert_to_datetime(df: pd.DataFrame, handle_na: str = 'raise') -> pd.DataFr
             errors='coerce' if handle_na == 'coerce' else 'raise'
         )
         
-        # Если использовали 'coerce', проверяем результат
         if handle_na == 'coerce' and result["timestamp"].isna().any():
             print("Предупреждение: некоторые значения не удалось преобразовать в datetime")
             
@@ -128,7 +178,21 @@ def convert_to_datetime(df: pd.DataFrame, handle_na: str = 'raise') -> pd.DataFr
 
 def _validate_datetime_column(df: pd.DataFrame) -> None:
     """
-    Валидация столбца с временными метками.
+    Проверяет валидность столбца с временными метками.
+
+    Параметры
+    ---------
+    df : pd.DataFrame
+        Таблица для валидации
+
+    Исключения
+    ----------
+    KeyError
+        Если отсутствует столбец "timestamp"
+    TypeError
+        Если столбец не имеет тип datetime
+    ValueError
+        Если столбец содержит пустые значения
     """
     if "timestamp" not in df.columns:
         raise KeyError("Отсутствует обязательный столбец 'timestamp'.")
@@ -142,7 +206,26 @@ def _validate_datetime_column(df: pd.DataFrame) -> None:
 
 def extract_datetime_features(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Извлечение всех временных признаков из временных меток (DA-1-35 + DA-2-34).
+    Извлекает временные признаки из меток (DA-1-35 + DA-2-34).
+
+    Параметры
+    ---------
+    df : pd.DataFrame
+        Таблица с datetime столбцом "timestamp"
+
+    Возвращает
+    -------
+    pd.DataFrame
+        Таблица с извлеченными признаками:
+        - day, month, year (DA-1-35)
+        - hour, is_morning, is_afternoon, is_evening, is_night (DA-2-34)
+
+    Исключения
+    ----------
+    KeyError
+        Если отсутствует столбец "timestamp"
+    TypeError
+        Если столбец не имеет тип datetime
     """
     _validate_datetime_column(df)
     
@@ -172,15 +255,24 @@ def create_time_of_day_bar_plot(
     colors: List[str] = None,
     title: str = 'Распределение записей по времени суток (DA-2-34)'
 ) -> None:
-    """
-    Создание bar plot для статистики времени суток (DA-2-34).
-    
-    Args:
-        features_df: DataFrame с бинарными признаками времени суток
-        save_path: Путь для сохранения графика. Если None - отображает на экране.
-        figsize: Размер графика
-        colors: Список цветов для столбцов
-        title: Заголовок графика
+     """
+    Создает bar plot для визуализации статистики времени суток.
+
+    Параметры
+    ---------
+    features_df : pd.DataFrame
+        DataFrame с бинарными признаками времени суток
+    figsize : tuple, optional
+        Размер графика в дюймах, по умолчанию (10, 6)
+    colors : List[str], optional
+        Список цветов для столбцов, по умолчанию стандартная палитра
+    title : str, optional
+        Заголовок графика, по умолчанию стандартный
+
+    Исключения
+    ----------
+    ValueError
+        Если отсутствуют необходимые столбцы с признаками времени суток
     """
     if colors is None:
         colors = ['skyblue', 'lightgreen', 'orange', 'purple']
@@ -196,8 +288,7 @@ def create_time_of_day_bar_plot(
     if total == 0:
         print("Нет данных для построения графика")
         return
-    
-    # Создание графика
+
     time_periods = ["Утро (6-12)", "День (12-18)", "Вечер (18-24)", "Ночь (0-6)"]
     
     fig = plt.figure(figsize=figsize)
@@ -227,21 +318,34 @@ def create_time_of_day_bar_plot(
             plt.show()
             
     finally:
-        # Всегда закрываем фигуру чтобы избежать утечек памяти
         plt.close(fig)
 
 
 def process_timestamp_data(df: pd.DataFrame, handle_na: str = 'raise') -> pd.DataFrame:
     """
-    Единый пайплайн обработки временных меток (DA-1-35 + DA-2-34).
+    Выполняет полный пайплайн обработки временных меток.
+
+    Параметры
+    ---------
+    df : pd.DataFrame
+        Исходная таблица с временными метками
+    handle_na : str, optional
+        Стратегия обработки пустых значений, по умолчанию 'raise'
+
+    Возвращает
+    -------
+    pd.DataFrame
+        Таблица с исходными данными и извлеченными признаками
+
+    Исключения
+    ----------
+    ValueError
+        Если произошла ошибка в процессе обработки
     """
-    # 1. Преобразование в datetime
     datetime_df = convert_to_datetime(df, handle_na=handle_na)
     
-    # 2. Извлечение всех признаков
     features_df = extract_datetime_features(datetime_df)
     
-    # 3. Объединение в один DataFrame
     result_df = pd.concat([datetime_df, features_df], axis=1)
     
     return result_df
@@ -254,13 +358,14 @@ def display_results(
     plot_filename: str = None
 ) -> None:
     """
-    Универсальная функция для отображения результатов.
-    
-    Args:
-        result_df: DataFrame с результатами обработки
-        data_source: Описание источника данных
-        save_plot: Сохранять ли график в файл
-        plot_filename: Имя файла для сохранения графика
+    Отображает результаты обработки временных меток.
+
+    Параметры
+    ---------
+    result_df : pd.DataFrame
+        DataFrame с результатами обработки
+    data_source : str
+        Описание источника данных для информационного вывода
     """
     print(f"=== РЕЗУЛЬТАТЫ ОБРАБОТКИ ({data_source}) ===")
     
@@ -268,7 +373,6 @@ def display_results(
     print(result_df.head(10))
     print()
     
-    # Статистика времени суток (простая)
     time_features = result_df[['is_morning', 'is_afternoon', 'is_evening', 'is_night']]
     counts = time_features.sum()
     total = len(time_features)
@@ -302,7 +406,14 @@ def display_results(
 
 def main():
     """
-    Основная функция, заменяющая дублирующиеся main функции.
+    Основная функция программы - обрабатывает аргументы командной строки и выполняет пайплайн.
+
+    Исключения
+    ----------
+    SystemExit
+        При корректном завершении работы
+    Exception
+        При возникновении ошибок в процессе выполнения
     """
     parser = argparse.ArgumentParser(
         description="DA-1-35 + DA-2-34: Работа с временными метками и создание бинарных признаков времени суток."
@@ -351,15 +462,12 @@ def main():
             data_source = "СИНТЕТИЧЕСКИЕ ДАННЫЕ"
             show_progress = False
         else:
-            # Данные из файла
             input_df = load_dataframe_from_file(args.file, show_progress=True)
             data_source = f"ДАННЫЕ ИЗ ФАЙЛА: {args.file}"
             show_progress = True
         
-        # Обработка данных
         result_df = process_timestamp_data(input_df, handle_na=args.handle_na)
         
-        # Отображение результатов
         display_results(
             result_df, 
             data_source, 
